@@ -1,0 +1,166 @@
+title: "Code for herbivory simulation"
+author: "Eve Slavich"
+date: "09/09/2020"
+
+
+library(readr)
+
+
+#read data
+dat <- read_csv("simulation_data.csv")
+
+#convert the data to zero’s and one’s- for eaten versus not eaten- then fit a glm with binomial family.
+
+dat$binary_eaten <- dat$herbivory != 0
+fit.binary <- glm(binary_eaten ~1, family = binomial(), data=dat)
+
+beta0 =  coef(fit.binary) #coefficient from fit.binary (intercept only model)
+P = exp(beta0)/ (1+exp(beta0)) #probability of being eaten
+
+#write a function which does the simulation
+
+#The function calculates the error for the estimated proportion that have been eaten (i.e. number of non zero values), the estimated proportion of leaf eaten, conditional on being non zero, and the overall expected amount of leaf eaten
+
+  logit = function(P){log(P/(1-P))}
+  logit.inv = function(x){exp(x)/(1+exp(x))}
+
+Simulate_Herbivory_Measurement <- function( sample_size , sigma_herbivory, sigma_measurement_error , P , A, NSIM=1000 ){
+  #sample size = size of dataset
+  #sigma_herbivory =  sd of proportion eaten (conditional on being eaten)
+  #sigma_measurement error = measurement error (standard deviation of errors due to measurement error)
+  #P = expected proportion that have a non zero herbivory value
+  #A = mean amount eaten from those that have been eaten
+  #NSIM = number of simulations to estimate the mean squared error with
+  
+  
+  #we will save results in these vectors
+  herbivory_sim1 = c()
+  Amount_logit_scale_sim1= c()
+  Probability_logit_scale_sim1= c()
+
+  #the loop starts here
+  for (i in 1:NSIM){
+  Eaten_binary = rbinom( sample_size, size = 1, prob = P)
+  Eaten_proportion = logit.inv( rnorm( sample_size, logit(A), sigma_herbivory+sigma_measurement_error) )
+  Eaten_overall = Eaten_proportion* Eaten_binary
+  #1.  simulate data
+  Dat_sim <- data.frame( herbivore_binary = Eaten_overall != 0)
+  #as above
+  Dat_sim_subset = data.frame( herbivore.proportion = Eaten_overall)
+  Dat_sim_subset = subset(Dat_sim_subset, herbivore.proportion >0)
+  #subset the data for the hurdle model
+  #2. Fit model to the data
+  fit.binary.sim = glm(herbivore_binary ~1, data = Dat_sim, family = binomial())
+  beta0 = coef(fit.binary.sim) 
+  P_sim = logit.inv(beta0)
+
+  Dat_sim_subset$herbivory_transform = log(Dat_sim_subset$herbivore.proportion/( 1 - Dat_sim_subset$herbivore.proportion))
+  
+  Fit.proportion.sim = lm(herbivory_transform~1, data = Dat_sim_subset)
+  A_sim_logit = coef(Fit.proportion.sim)
+  A_sim = logit.inv(A_sim_logit)
+
+  #3. Get the estimate of herbivory from the model
+  Estimate = A_sim*P_sim
+  #4. Save the estimate into the vectors. 
+  herbivory_sim1[i] = Estimate
+  Amount_logit_scale_sim1[i] =A_sim_logit 
+  Probability_logit_scale_sim1[i] = beta0
+  }
+  
+  #now take the estimates from the simulation models, and compare these to the "true" values used to generate the data- we use the mean squared error to look at the accuracy of different sample sizes and measurement error. 
+  
+  MSE_Prob = mean((Probability_logit_scale_sim1 - logit(P))^2)
+  MSE_Amount =  mean((Amount_logit_scale_sim1 - logit(A))^2)
+  MSE_OverallEstimate =  mean((logit(herbivory_sim1) - logit(A*P))^2)
+  
+  #NOW add the jacknife
+  
+   RMSE_Prob_k = c()
+   RMSE_Amount_k =c()
+   RMSE_OverallEstimate_k = c()
+    
+  for (k in 1:NSIM){
+    RMSE_Prob_k[k] = sqrt(mean((Probability_logit_scale_sim1[-k] - logit(P))^2))
+    RMSE_Amount_k[k] =  sqrt(mean((Amount_logit_scale_sim1[-k] - logit(A))^2))
+  RMSE_OverallEstimate_k[k] =  sqrt(mean((logit(herbivory_sim1[-k]) - logit(A*P))^2))
+    
+  }
+  
+  MCSE_RMSE_Prob = sqrt(mean((RMSE_Prob_k - sqrt(MSE_Prob))^2))
+  MCSE_RMSE_Amount= sqrt(mean((RMSE_Amount_k - sqrt(MSE_Amount))^2))
+  MCSE_RMSE_OverallEstimate= sqrt(mean((RMSE_OverallEstimate_k - sqrt(MSE_OverallEstimate))^2))
+  
+cbind( c("MSError:Logit Probability of Eaten" = MSE_Prob,"MSError:Logit Amount Eaten (conditional)" = MSE_Amount ,"MSError:Logit Amount Eaten (unconditional)" = MSE_OverallEstimate), c(MCSE_RMSE_Prob, MCSE_RMSE_Amount, MCSE_RMSE_OverallEstimate))
+}
+
+#now simulate!
+
+
+#N=50, measurement accuracy = 95%
+Simulate_Herbivory_Measurement(sample_size = 50, sigma_herbivory = 1.1,sigma_measurement_error = 0.05, P=P, A=A, NSIM=1000)
+#N=50, measurement accuracy = 99%
+Simulate_Herbivory_Measurement(sample_size = 50,sigma_herbivory = 1.1,sigma_measurement_error = 0.01, P=P, A=A, NSIM=1000)
+#N=50, measurement accuracy = 99.9%
+Simulate_Herbivory_Measurement(sample_size = 50,sigma_herbivory = 1.1,sigma_measurement_error = 0.001, P=P, A=A, NSIM=1000)
+
+#N=100, measurement accuracy = 95%
+Simulate_Herbivory_Measurement(sample_size = 100, sigma_herbivory = 1.1,sigma_measurement_error = 0.05, P=P, A=A, NSIM=1000)
+#N=100, measurement accuracy = 99%
+Simulate_Herbivory_Measurement(sample_size = 100,sigma_herbivory = 1.1,sigma_measurement_error = 0.01, P=P, A=A, NSIM=1000)
+#N=100, measurement accuracy = 99.9%
+Simulate_Herbivory_Measurement(sample_size = 100,sigma_herbivory = 1.1,sigma_measurement_error = 0.001, P=P, A=A, NSIM=1000)
+
+#N=250, measurement accuracy = 95%
+Simulate_Herbivory_Measurement(sample_size = 250, sigma_herbivory = 1.1,sigma_measurement_error = 0.05, P=P, A=A, NSIM=1000)
+#N=250, measurement accuracy = 99%
+Simulate_Herbivory_Measurement(sample_size = 250,sigma_herbivory = 1.1,sigma_measurement_error = 0.01, P=P, A=A, NSIM=1000)
+#N=250, measurement accuracy = 99.9%
+Simulate_Herbivory_Measurement(sample_size = 250,sigma_herbivory = 1.1,sigma_measurement_error = 0.001, P=P, A=A, NSIM=1000)
+
+#N=500, measurement accuracy = 95%
+Simulate_Herbivory_Measurement(sample_size = 500, sigma_herbivory = 1.1,sigma_measurement_error = 0.05, P=P, A=A, NSIM=1000)
+#N=500, measurement accuracy = 99%
+Simulate_Herbivory_Measurement(sample_size = 500,sigma_herbivory = 1.1,sigma_measurement_error = 0.01, P=P, A=A, NSIM=1000)
+#N=500, measurement accuracy = 99.9%
+Simulate_Herbivory_Measurement(sample_size = 500,sigma_herbivory = 1.1,sigma_measurement_error = 0.001, P=P, A=A, NSIM=1000)
+
+#N=750, measurement accuracy = 95%
+Simulate_Herbivory_Measurement(sample_size = 750, sigma_herbivory = 1.1,sigma_measurement_error = 0.05, P=P, A=A, NSIM=1000)
+#N=750, measurement accuracy = 99%
+Simulate_Herbivory_Measurement(sample_size = 750,sigma_herbivory = 1.1,sigma_measurement_error = 0.01, P=P, A=A, NSIM=1000)
+#N=750, measurement accuracy = 99.9%
+Simulate_Herbivory_Measurement(sample_size = 750,sigma_herbivory = 1.1,sigma_measurement_error = 0.001, P=P, A=A, NSIM=1000)
+
+#N=1000, measurement accuracy = 95%
+Simulate_Herbivory_Measurement(sample_size = 1000, sigma_herbivory = 1.1,sigma_measurement_error = 0.05, P=P, A=A, NSIM=1000)
+#N=1000, measurement accuracy = 99%
+Simulate_Herbivory_Measurement(sample_size = 1000,sigma_herbivory = 1.1,sigma_measurement_error = 0.01, P=P, A=A, NSIM=1000)
+#N=1000, measurement accuracy = 99.9%
+Simulate_Herbivory_Measurement(sample_size = 1000,sigma_herbivory = 1.1,sigma_measurement_error = 0.001, P=P, A=A, NSIM=1000)
+
+#end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
