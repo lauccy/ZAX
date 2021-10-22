@@ -106,7 +106,7 @@ TukeyHSD(my_aov)
 ```{r}
 #read in data
 library(readr)
-ZAX <- read_csv("ZAX_data.csv")
+ZAX <- read_csv("ZAX_completion_data.csv")
 
 #Calculate 90% quantile for number of images
 quantile(ZAX$Image, .9)
@@ -115,11 +115,11 @@ quantile(ZAX$Image, .9)
 #Number of images density plot
 image<- 
   ZAX %>% 
-ggplot(aes(x=ZAX_graphs_Round_1$Image)) + 
+ggplot(aes(x=ZAX$Image)) + 
   geom_density(alpha=.2,fill="#66BB6A")+
   theme_classic(base_size = 15) + labs(x="Number of training images", y="Proportion of participants") +
-   geom_vline(aes(xintercept=mean(ZAX_graphs_Round_1$Image)), color="black", linetype="solid", size=1)+
-  geom_vline(aes(xintercept=quantile(ZAX_graphs_Round_1$Image,.9)),color="black",linetype="dashed", size=1)
+   geom_vline(aes(xintercept=mean(ZAX$Image)), color="black", linetype="solid", size=1)+
+  geom_vline(aes(xintercept=quantile(ZAX$Image,.9)),color="black",linetype="dashed", size=1)
 
 image
 ```
@@ -135,8 +135,8 @@ time<-
 ggplot(aes(x=ZAX$`Decimal min`)) + 
   geom_density(alpha=.2,fill="#66BB6A")+
   theme_classic(base_size = 15) + labs(x="Time to complete training (minutes)", y="Proportion of participants") +
-   geom_vline(aes(xintercept=mean(ZAX_graphs_Round_1$`Decimal min`)), color="black", linetype="solid", size=1)+
-  geom_vline(aes(xintercept=quantile(ZAX_graphs_Round_1$`Decimal min`,.90)),color="black",linetype="dashed", size=1)
+   geom_vline(aes(xintercept=mean(ZAX$`Decimal min`)), color="black", linetype="solid", size=1)+
+  geom_vline(aes(xintercept=quantile(ZAX$`Decimal min`,.90)),color="black",linetype="dashed", size=1)
 
 time
 ```
