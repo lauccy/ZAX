@@ -4,7 +4,7 @@ Code for statistical analyses associated with data collected from the ZAX Herbiv
 Data associated with this code is available in this repository (names below):
 - pre_post_training.csv
 - Accuracy_retention.csv
-- ZAX_data.csv
+- ZAX_completion_data.csv
 
 
 :)
