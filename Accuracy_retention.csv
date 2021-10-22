@@ -1,0 +1,78 @@
+User,Interval,Accuracy
+AA,Training,98.1
+AA,Immediately after,97.24
+AA,1 hour,95.68
+AA,1 day,96.66
+AA,1 week,95.82
+AA,1 month,96.06
+AA,3 months,95.48
+BB,Training,98.1
+BB,Immediately after,96.04
+BB,1 hour,94.4
+BB,1 day,95.44
+BB,1 week,95.28
+BB,1 month,95.44
+BB,3 months,94.4
+CC,Training,98
+CC,Immediately after,96.56
+CC,1 hour,97.62
+CC,1 day,95.24
+CC,1 week,95.82
+CC,1 month,95.4
+CC,3 months,94.6
+DD,Training,98.2
+DD,Immediately after,96.46
+DD,1 hour,96.88
+DD,1 day,95.44
+DD,1 week,94.78
+DD,1 month,95.92
+DD,3 months,94.54
+EE,Training,98.3
+EE,Immediately after,93.58
+EE,1 hour,95.96
+EE,1 day,95.72
+EE,1 week,97.18
+EE,1 month,96.62
+EE,3 months,97.36
+FF,Training,98.1
+FF,Immediately after,94.34
+FF,1 hour,97.68
+FF,1 day,97.36
+FF,1 week,96.84
+FF,1 month,96.88
+FF,3 months,96.62
+GG,Training,98.6
+GG,Immediately after,95.02
+GG,1 hour,96.88
+GG,1 day,94.28
+GG,1 week,92.4
+GG,1 month,96.84
+GG,3 months,96.38
+HH,Training,98
+HH,Immediately after,94.34
+HH,1 hour,96.22
+HH,1 day,97.41
+HH,1 week,95.8
+HH,1 month,95.7
+HH,3 months,95.96
+II,Training,98.7
+II,Immediately after,97.12
+II,1 hour,95.18
+II,1 day,94.84
+II,1 week,95.52
+II,1 month,93.96
+II,3 months,94.44
+JJ,Training,98.2
+JJ,Immediately after,97.18
+JJ,1 hour,96.08
+JJ,1 day,97.3
+JJ,1 week,96.48
+JJ,1 month,96.78
+JJ,3 months,96.06
+KK,Training,98.2
+KK,Immediately after,95.54
+KK,1 hour,95.8
+KK,1 day,95.82
+KK,1 week,96.7
+KK,1 month,95.54
+KK,3 months,94.78
