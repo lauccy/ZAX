@@ -1,0 +1,152 @@
+---
+title: "ZAX_analyses_final"
+author: "Zoe Xirocostas"
+date: "22/10/2021"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(readr)
+
+#Pre-post training analysis
+
+pre_post_data <- read_csv("C:/Users/zoexi/OneDrive - UNSW/PhD/Thesis Chapters/Ch.1 - Method for visually estimating leaf damage/R/data_raw/ZAX ANOVA data.csv", 
+    col_types = cols(UserID = col_character()))
+
+View(pre_post_data)
+
+#First check n=52
+length(unique(pre_post_data$UserID))
+```
+```{r}
+#function for data summary point + bars in violin plot
+data_summary <- function(x){
+   m <- mean(x)
+   ymin <- m-sd(x)
+   ymax <- m+sd(x)
+   return(c(y=m,ymin=ymin,ymax=ymax))}
+
+
+#visualise data with a violinplot
+ZAX_ANOVA_data %>% mutate(Phase = fct_relevel(Phase, "Pre-training", "Training", "Post-training")) %>% filter(!Phase == "Training") %>% 
+  ggplot(aes(Phase, Accuracy, fill = Phase)) + geom_violin(position="dodge", alpha = .5) + theme_classic(base_size = 20) + ylab("Average accuracy (%)") + theme(legend.position ="none")+
+  scale_fill_manual(values=c("#004D40", "#CDDC39"))+ stat_summary(fun.data=data_summary)
+
+ggsave("pre-post_training.png", width = 5, height = 6)
+```
+```{r}
+#get summary stats of data
+summary<-pre_post_data %>%
+group_by(Phase) %>%
+get_summary_stats(Accuracy, type = "mean_sd")
+data.frame(summary)
+
+```
+```{r}
+#log transform response variable
+pre_post_data <- pre_post_data %>%
+ mutate(LogAccuracy = log(Accuracy))
+
+#conduct paired samples t-test
+model1 <-pre_post_data %>% filter(!Phase == "Training") %>% 
+pairwise_t_test( LogAccuracy~Phase,paired=TRUE, p.adjust.method = "bonferroni" ) 
+data.frame(model1)
+
+```
+
+#Accuracy retention analysis
+```{r}
+#read in data
+Accuracy_retention <- read_csv("C:/Users/zoexi/OneDrive - UNSW/PhD/Thesis Chapters/Ch.1 - Method for visually estimating leaf damage/R/data_raw/Accuracy ANOVA.csv")
+
+#First check n=11
+length(unique(Accuracy_retention$User))
+
+```
+```{r}
+#filter out training interval and relevel factors
+Accuracy_retention <-Accuracy_retention  %>% filter(!Interval == "Training") %>% 
+mutate(Interval = fct_relevel(Interval,"Immediately after","1 hour","1 day","1 week","1 month","3 months"))
+
+#visualise data with a boxplot
+Accuracy_retention %>%
+  ggplot(aes(Interval, Accuracy, fill = Interval)) + geom_violin(position="dodge", alpha = .5) + theme_classic(base_size = 20) + ylab("Average accuracy (%)")+ xlab("Time since initial training") + theme(legend.position ="none")+ stat_summary(fun.data=data_summary)+
+  scale_fill_manual(values=c("#004D40", "#CDDC39","#CDDC39","#CDDC39","#CDDC39","#CDDC39")) + scale_x_discrete(labels = wrap_format(10))
+
+ggsave("accuracy retention.png", width = 7.25, height = 4)
+```
+```{r}
+#get summary stats of data
+summ<-Accuracy_retention%>%
+group_by(Interval) %>%
+get_summary_stats(Accuracy, type = "mean_sd")
+data.frame(summ)
+```
+
+```{r}
+#log transform response variable
+Accuracy_retention <- Accuracy_retention %>%
+ mutate(LogAccuracy = log(Accuracy))
+
+# Compute the analysis of variance
+my_aov <- aov(LogAccuracy ~ Interval, data = Accuracy_retention)
+# Summary of the analysis
+summary(my_aov)
+
+#None of the intervals after training are significantly different to each other!
+#Tukey test shows how similar the multiple pairwise comparisons are!
+
+TukeyHSD(my_aov)
+
+```
+
+#Cut-off point for Training
+
+```{r}
+#read in data
+library(readr)
+ZAX_graphs_Round_1 <- read_csv("C:/Users/zoexi/OneDrive - UNSW/PhD/Thesis Chapters/Ch.1 - Method for visually estimating leaf damage/R/data_raw/ZAX graphs_Round 1.csv")
+
+#Calculate 90% quantile for number of images
+quantile(ZAX_graphs_Round_1$Image, .9)
+```
+```{r}
+#Number of images density plot
+image<- 
+  ZAX_graphs_Round_1 %>% 
+ggplot(aes(x=ZAX_graphs_Round_1$Image)) + 
+  geom_density(alpha=.2,fill="#66BB6A")+
+  theme_classic(base_size = 15) + labs(x="Number of training images", y="Proportion of participants") +
+   geom_vline(aes(xintercept=mean(ZAX_graphs_Round_1$Image)), color="black", linetype="solid", size=1)+
+  geom_vline(aes(xintercept=quantile(ZAX_graphs_Round_1$Image,.9)),color="black",linetype="dashed", size=1)
+
+image
+```
+```{r}
+#Calculate 90% quantile for time to complete training
+quantile(ZAX_graphs_Round_1$`Decimal min`,.9)
+```
+```{r}
+
+#Time to complete training density plot
+time<- 
+  ZAX_graphs_Round_1 %>% 
+ggplot(aes(x=ZAX_graphs_Round_1$`Decimal min`)) + 
+  geom_density(alpha=.2,fill="#66BB6A")+
+  theme_classic(base_size = 15) + labs(x="Time to complete training (minutes)", y="Proportion of participants") +
+   geom_vline(aes(xintercept=mean(ZAX_graphs_Round_1$`Decimal min`)), color="black", linetype="solid", size=1)+
+  geom_vline(aes(xintercept=quantile(ZAX_graphs_Round_1$`Decimal min`,.90)),color="black",linetype="dashed", size=1)
+
+time
+```
+```{r}
+#now combine our density plots!
+
+library(ggpubr)
+ggarrange(time, image, ncol = 1, nrow = 2, labels = c("A", "B"))
+
+ggsave("density.png", width = 5.5, height = 7)
+```
+
+
