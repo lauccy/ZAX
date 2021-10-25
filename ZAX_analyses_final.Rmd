@@ -90,15 +90,17 @@ data.frame(summ)
 Accuracy_retention <- Accuracy_retention %>%
  mutate(LogAccuracy = log(Accuracy))
 
-# Compute the analysis of variance
-my_aov <- aov(LogAccuracy ~ Interval, data = Accuracy_retention)
-# Summary of the analysis
-summary(my_aov)
+# Compute the repeated measures ANOVA
+res.aov <- anova_test(data = Accuracy_retention, dv = LogAccuracy, wid = User, within = Interval)
+get_anova_table(res.aov)
 
 #None of the intervals after training are significantly different to each other!
-#Tukey test shows how similar the multiple pairwise comparisons are!
-
-TukeyHSD(my_aov)
+pwc <- Accuracy_retention %>%
+  pairwise_t_test(
+    LogAccuracy ~ Interval, paired = TRUE,
+    p.adjust.method = "bonferroni"
+    )
+data.frame(pwc)
 
 ```
 
