@@ -9,11 +9,16 @@ output: html_document
 library(tidyverse)
 library(readr)
 library(rstatix)
+library(scales)
+library(glmmTMB)
+library(DHARMa)
 
-#Pre-post training analysis
-
+#Pre-post training analysis - read in data
 pre_post_data <- read_csv("pre_post_training.csv", 
     col_types = cols(UserID = col_character()))
+
+#filter out "training" data and add inaccuracy
+pre_post_data <-pre_post_data %>% filter(!Phase == "Training") %>% mutate(Inaccuracy = (100-Accuracy))
 
 View(pre_post_data)
 
@@ -28,80 +33,80 @@ data_summary <- function(x){
    ymax <- m+sd(x)
    return(c(y=m,ymin=ymin,ymax=ymax))}
 
-
 #visualise data with a violinplot
-pre_post_data %>% mutate(Phase = fct_relevel(Phase, "Pre-training", "Training", "Post-training")) %>% filter(!Phase == "Training") %>% 
-  ggplot(aes(Phase, Accuracy, fill = Phase)) + geom_violin(position="dodge", alpha = .5) + theme_classic(base_size = 20) + ylab("Average accuracy (%)") + theme(legend.position ="none")+
-  scale_fill_manual(values=c("#004D40", "#CDDC39"))+ stat_summary(fun.data=data_summary)
+pre_post_data %>% mutate(Phase = fct_relevel(Phase, "Pre-training", "Post-training")) %>% 
+  ggplot(aes(Phase, Inaccuracy, fill = Phase)) + geom_violin(position="dodge", alpha = .5) + theme_classic(base_size = 20) + ylab("Average inaccuracy (%)") + theme(legend.position ="none")+
+  scale_fill_manual(values=c("#004D40", "#CDDC39"))+ stat_summary(fun.data=data_summary) +
+scale_y_log10()
 
-ggsave("pre_post_training.png", width = 5, height = 6)
+ggsave("pre_post_training.png", width = 5, height = 6) 
 ```
 ```{r}
 #get summary stats of data
+
 summary<-pre_post_data %>%
 group_by(Phase) %>%
-get_summary_stats(Accuracy, type = "mean_sd")
+get_summary_stats(Inaccuracy, type = "mean_sd")
 data.frame(summary)
-
 ```
 ```{r}
-#log transform response variable
+#log transform response variable (inaccuracy)
 pre_post_data <- pre_post_data %>%
- mutate(LogAccuracy = log(Accuracy))
+ mutate(LogInaccuracy = log(100-Accuracy))
+
+#Check assumptions of normality
+model<-glmmTMB(LogInaccuracy~Phase + (1|UserID),data=pre_post_data)
+plot(simulateResiduals(model))
 
 #conduct paired samples t-test
-model1 <-pre_post_data %>% filter(!Phase == "Training") %>% 
-pairwise_t_test( LogAccuracy~Phase,paired=TRUE, p.adjust.method = "bonferroni" ) 
+model1 <-pre_post_data %>%
+pairwise_t_test( LogInaccuracy~Phase,paired=TRUE, p.adjust.method = "bonferroni" ) 
 data.frame(model1)
-
 ```
 
 #Accuracy retention analysis
 ```{r}
 #read in data
 Accuracy_retention <- read_csv("Accuracy_retention.csv")
-
 #First check n=11
 length(unique(Accuracy_retention$User))
-
 ```
 ```{r}
-#filter out training interval and relevel factors
+#filter out training interval, relevel factors and make inaccuracy columns
 Accuracy_retention <-Accuracy_retention  %>% filter(!Interval == "Training") %>% 
-mutate(Interval = fct_relevel(Interval,"Immediately after","1 hour","1 day","1 week","1 month","3 months"))
+mutate(Interval = fct_relevel(Interval,"Immediately after","1 hour","1 day","1 week","1 month","3 months")) %>% mutate(Inaccuracy=(100-Accuracy)) %>% mutate(LogInaccuracy=log(Inaccuracy))
 
 #visualise data with a boxplot
 Accuracy_retention %>%
-  ggplot(aes(Interval, Accuracy, fill = Interval)) + geom_violin(position="dodge", alpha = .5) + theme_classic(base_size = 20) + ylab("Average accuracy (%)")+ xlab("Time since initial training") + theme(legend.position ="none")+ stat_summary(fun.data=data_summary)+
-  scale_fill_manual(values=c("#004D40", "#CDDC39","#CDDC39","#CDDC39","#CDDC39","#CDDC39")) + scale_x_discrete(labels = wrap_format(10))
+  ggplot(aes(Interval, Inaccuracy, fill = Interval)) + geom_violin(position="dodge", alpha = .5) + theme_classic(base_size = 20) + ylab("Average accuracy (%)")+ xlab("Time since initial training") + theme(legend.position ="none")+ stat_summary(fun.data=data_summary)+
+  scale_fill_manual(values=c("#004D40", "#CDDC39","#CDDC39","#CDDC39","#CDDC39","#CDDC39")) + scale_x_discrete(labels = wrap_format(10)) + scale_y_log10()
 
 ggsave("accuracy retention.png", width = 7.25, height = 4)
 ```
 ```{r}
+#Check assumptions of normality
+model2<-glmmTMB(LogInaccuracy~Interval + (1|User),data=Accuracy_retention)
+plot(simulateResiduals(model2))
+
 #get summary stats of data
 summ<-Accuracy_retention%>%
 group_by(Interval) %>%
-get_summary_stats(Accuracy, type = "mean_sd")
+get_summary_stats(Inaccuracy, type = "mean_sd")
 data.frame(summ)
 ```
 
 ```{r}
-#log transform response variable
-Accuracy_retention <- Accuracy_retention %>%
- mutate(LogAccuracy = log(Accuracy))
-
 # Compute the repeated measures ANOVA
-res.aov <- anova_test(data = Accuracy_retention, dv = LogAccuracy, wid = User, within = Interval)
+res.aov <- anova_test(data = Accuracy_retention, dv = LogInaccuracy, wid = User, within = Interval)
 get_anova_table(res.aov)
 
 #None of the intervals after training are significantly different to each other!
 pwc <- Accuracy_retention %>%
   pairwise_t_test(
-    LogAccuracy ~ Interval, paired = TRUE,
+    LogInaccuracy ~ Interval, paired = TRUE,
     p.adjust.method = "bonferroni"
     )
 data.frame(pwc)
-
 ```
 
 #Cut-off point for Training
@@ -110,7 +115,6 @@ data.frame(pwc)
 #read in data
 library(readr)
 ZAX <- read_csv("ZAX_completion_data.csv")
-
 #Calculate 90% quantile for number of images
 quantile(ZAX$Image, .9)
 ```
@@ -131,7 +135,6 @@ image
 quantile(ZAX$`Decimal min`,.9)
 ```
 ```{r}
-
 #Time to complete training density plot
 time<- 
   ZAX %>% 
@@ -140,16 +143,14 @@ ggplot(aes(x=ZAX$`Decimal min`)) +
   theme_classic(base_size = 15) + labs(x="Time to complete training (minutes)", y="Proportion of participants") +
    geom_vline(aes(xintercept=mean(ZAX$`Decimal min`)), color="black", linetype="solid", size=1)+
   geom_vline(aes(xintercept=quantile(ZAX$`Decimal min`,.90)),color="black",linetype="dashed", size=1)
-
 time
 ```
 ```{r}
 #now combine our density plots!
-
 library(ggpubr)
 ggarrange(time, image, ncol = 1, nrow = 2, labels = c("A", "B"))
-
 ggsave("density.png", width = 5.5, height = 7)
 ```
 #end
+
 
