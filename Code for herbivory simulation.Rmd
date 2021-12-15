@@ -5,6 +5,10 @@ date: "09/09/2020"
 
 library(readr)
 
+## liujx added two line of codes to load tidyverse and sjPlot
+library(tidyverse)
+library(sjPlot)
+
 
 #read data
 dat <- read_csv("simulation_data.csv")
@@ -13,6 +17,8 @@ dat <- read_csv("simulation_data.csv")
 
 dat$binary_eaten <- dat$herbivory != 0
 fit.binary <- glm(binary_eaten ~1, family = binomial(), data=dat)
+
+tab_model(fit.binary)
 
 beta0 =  coef(fit.binary) #coefficient from fit.binary (intercept only model)
 P = exp(beta0)/ (1+exp(beta0)) #probability of being eaten
